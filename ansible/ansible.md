@@ -21,4 +21,10 @@ for host in $(cat (hosts.list).ini); do ssh-keyscan -H $host >> ~/.ssh/known_hos
 
 
 # ansible
-ansible-playbook -u (you) -i (hosts.list)-production.ini -k -b --ask-become-pass overwrite_file.yml      
+ansible-playbook -u (you) -i (hosts.list)-production.ini -k -b --ask-become-pass overwrite_file.yml
+
+
+
+
+Books:
+- [Anton's bookshelf](https://og2k.com/books/)
