@@ -55,6 +55,8 @@ ls -la /etc/apt/sources.list.d/
 
 
 Installing Icinga, IcingaWeb and IcingaWeb Director
+Positive remark, that a lot of modules has been packaged and are easily downloadable from major repos -
+- there is no need to bring them separately and configure. :) good.
 ```bash
 apt install \
   icinga2 \
@@ -111,7 +113,6 @@ Check, that webserver is accessible and inspect connectivity until you see the d
 ```bash
 apt install tcpdump
 tcpdump port 80
-
 tail -f /var/log/apache2/*.log
 ```
 
@@ -257,15 +258,6 @@ DB Source: [icingaweb2_db], [Create schema]
 
 
 
-# 2021 01 27  * updated
-
-NO PACKAGES IN REPOSITORY
-at the moment of writing, icinga packages were not available in RHN for RH Satellites
-subscribed to Icinga_RHEL8_Icinga_RHEL8
-
-
-
-
 # ICINGA (master installation)
 
 # enable REPOS, subscribe if needed
@@ -277,10 +269,11 @@ icinga2 feature list
 
 yum install icingaweb2 icingaweb2-selinux icingacli
 
-# if you wish to use EPEL's plugins, install them with
+# if you wish to use EPEL's plugins, install them with,
 yum install nagios-plugins-all
 # otherwise install them manually
 [...]
+# on some other repos, these checks are named as "monitoring-plugins"
 
 # yum install mariadb-server mariadb
 # use better module installation instead
@@ -296,9 +289,9 @@ yum install icinga2-ido-mysql
 # create database, user and tables
 mysql -u root -p
   CREATE DATABASE icinga;
-  # you may create user and grand using same command
   # CREATE USER icinga@localhost IDENTIFIED BY 'newpass';
   # GRANT SELECT, INSERT, UPDATE, DELETE, DROP, CREATE VIEW, INDEX, EXECUTE ON icinga.* TO 'icinga'@'localhost';
+  # or use one merged command: granting permissions and settin up password.
   GRANT SELECT, INSERT, UPDATE, DELETE, DROP, CREATE VIEW, INDEX, EXECUTE ON icinga.* TO 'icinga'@'localhost' IDENTIFIED BY '(newpass)';
   FLUSH PRIVILEGES;
   quit
@@ -351,33 +344,24 @@ mysql -u root -p
 CREATE DATABASE icingaweb2;
 GRANT ALL ON icingaweb2.* TO icingaweb2@localhost IDENTIFIED BY '(newpass)';
 
-# does not exist in repo, comes from EPEL, better is "GraphicsMagick.x86_64 : An ImageMagick fork, offering faster image generation and better quality"
-# yum install ImageMagick
-# causes dependecies error
-# yum install ImageMagick-devel
-# source /opt/rh/rh-php71/enable
-# /opt/rh/rh-php71/root/bin/pecl install imagick
 
 
 
 
-# server firewall
-# open firewall, if needed tcp/(80,443)
+# server firewall: open firewall, if needed tcp/(80,443) (iptables in this case)
 vi /etc/sysconfig/iptables
-
+```bash
 ### ## #
 # Icinga welcomes.
 ### ## #
--A INPUT -m state --state NEW -m tcp -p tcp -s xxx.xxx.xx.xxxx/21 --dport 5665 -j ACCEPT -m comment --comment "Icinga listens for agents."
--A INPUT -m state --state NEW -m tcp -p tcp -s xxx.xxx.xx.xx/21 -m multiport --dports 80,443 -j ACCEPT -m comment --comment "Icinga listens for http(s) connections."
+-A INPUT -m state --state NEW -m tcp -p tcp -s xxx.xxx.xx.xxxx/21            --dport 5665    -j ACCEPT -m comment --comment "Icinga listens for agents."
+-A INPUT -m state --state NEW -m tcp -p tcp -s xxx.xxx.xx.xx/21 -m multiport --dports 80,443 -j ACCEPT -m comment --comment "Apache listens for http(s) connections towards IcingaWeb."
+```
 
 # reload firewall and check
 iptables-restore < /etc/sysconfig/iptables
 iptables -L -n -v --line-numbers | grep Icinga
 
-# github? no github, please.
-# for github
-open firewall rules here
 
 # at this point Icingaweb2 should be accessible via browser
 https://localhost/icingaweb2
@@ -476,116 +460,9 @@ Protected Custom Variables: *pw*,*pass*,community
 
 
 
-
-
-
-
-#
-# installing director (adding hosts/services)
-#
-
-# assuming at this point that firewall is opened towards github servers
-iptables-restore < /etc/sysconfig/iptables
-iptables -L -n -v --line-numbers | grep git
-5        0     0 ACCEPT     tcp  --  *      *       0.0.0.0/0            0.0.0.0/0            multiport dports 80,443 tcp match-set github dst
-# easy way:
-yum install git
-
-# installing required module dependencies first
-https://github.com/Icinga/icingaweb2-module-ipl/blob/master/README.md
-# check for latest release number and adjust MODULE_VERSION variable below:
-https://github.com/Icinga/icingaweb2-module-ipl/releases
-
-# prepare download directory to avoid mess and keep places clean and tidy
-sudo
-cd
-mkdir -p downloads/modules4icinga
-cd downloads/modules4icinga/
-
-# check that icingaweb2 modules directory exists and is not empty:
-ls -la /usr/share/icingaweb2/modules
-
-# create installation script
-vi install_icinga_module.sh
----snip---
-# paste following code below:
-#
-# 2020 01 27  + init: this script written to install/update modules for icinga /A
-#
-
-MODULES_PATH="/usr/share/icingaweb2/modules"
-
-# https://github.com/Icinga/icingaweb2-module-ipl/releases
-MODULE_NAME=ipl
-MODULE_VERSION=v0.5.0
-REPO="https://github.com/Icinga/icingaweb2-module-${MODULE_NAME}"
-rm -rf ${MODULES_PATH}/${MODULE_NAME}
-git clone ${REPO} "${MODULES_PATH}/${MODULE_NAME}" --branch "${MODULE_VERSION}"
-icingacli module enable "${MODULE_NAME}"
-
-# https://github.com/Icinga/icingaweb2-module-incubator/releases
-MODULE_NAME=incubator
-MODULE_VERSION=v0.6.0
-REPO="https://github.com/Icinga/icingaweb2-module-${MODULE_NAME}"
-rm -rf ${MODULES_PATH}/${MODULE_NAME}
-git clone ${REPO} "${MODULES_PATH}/${MODULE_NAME}" --branch "${MODULE_VERSION}"
-icingacli module enable "${MODULE_NAME}"
-
-# https://github.com/Icinga/icingaweb2-module-reactbundle/releases
-MODULE_NAME=reactbundle
-MODULE_VERSION=v0.8.0
-REPO="https://github.com/Icinga/icingaweb2-module-${MODULE_NAME}"
-rm -rf ${MODULES_PATH}/${MODULE_NAME}
-git clone ${REPO} "${MODULES_PATH}/${MODULE_NAME}" --branch "${MODULE_VERSION}"
-icingacli module enable "${MODULE_NAME}"
-
-# https://github.com/Icinga/icingaweb2-module-director/releases
-MODULE_NAME=director
-MODULE_VERSION=v1.8.0
-REPO="https://github.com/Icinga/icingaweb2-module-${MODULE_NAME}"
-rm -rf ${MODULES_PATH}/${MODULE_NAME}
-git clone ${REPO} "${MODULES_PATH}/${MODULE_NAME}" --branch "${MODULE_VERSION}"
-icingacli module enable "${MODULE_NAME}"
-
-ls -la ${MODULES_PATH}
-icingacli module list
-echo "Done."
----snip---
-
-# make script executable and run it (you will need it in the future to update modules)
-chmod +x ./install_icinga_module.sh
-./install_icinga_module.sh
-[...]
----snip---
-total 4
-drwxr-xr-x. 10 root root  130 Jan 27 15:17 .
-drwxr-xr-x.  7 root root   80 Jan 27 10:58 ..
-drwxr-xr-x. 11 root root 4096 Jan 27 15:17 director
-drwxr-xr-x.  6 root root  124 Jan 27 10:58 doc
-drwxr-xr-x.  6 root root  232 Jan 27 15:17 incubator
-drwxr-xr-x.  6 root root  205 Jan 27 15:17 ipl
-drwxr-xr-x.  7 root root  136 Jan 27 10:58 monitoring
-drwxr-xr-x.  5 root root  169 Jan 27 15:17 reactbundle
-drwxr-xr-x.  5 root root   71 Jan 27 10:58 setup
-drwxr-xr-x.  5 root root   70 Jan 27 10:58 translation
-MODULE         VERSION   STATE     DESCRIPTION
-director       1.8.0     enabled   Director - Config tool for Icinga 2
-doc            2.8.2     enabled   Documentation module
-incubator      0.6.0     enabled   Incubator provides bleeding-edge libraries
-ipl            v0.5.0    enabled   The Icinga PHP library
-monitoring     2.8.2     enabled   Icinga monitoring module
-reactbundle    0.8.0     enabled   ReactPHP-based 3rd party libraries
-
-Done.
----snip---
-
-
-https://github.com/Icinga/icingaweb2-module-director/blob/master/doc/02-Installation.md
-# installing module dependencies (repeat until Dependencies resolved. Nothing to do. Complete!)
-yum install php-mysqlnd php-curl php-iconv php-pcntl php-process php-sockets php-mbstring php-json
-
-# create database for director
+# create database for director (as root no pass required, just press [enter])
 mysql -u root -p
+
 # add resource (specify character set is lowercase 'utf8', utf8mb4 will not work (for time of writing, 2021 01 27 /A)):
 CREATE DATABASE director CHARACTER SET 'utf8';
 GRANT ALL ON director.* TO director@localhost IDENTIFIED BY 'newpass';
@@ -621,12 +498,8 @@ Port: 5665
 API user: icingaweb2
 Password: (pass)
 
-# configuring daemon
-useradd -r -g icingaweb2 -d /var/lib/icingadirector -s /bin/false icingadirector
-install -d -o icingadirector -g icingaweb2 -m 0750 /var/lib/icingadirector
-cp "/usr/share/icingaweb2/modules/director/contrib/systemd/icinga-director.service" /etc/systemd/system/
-systemctl daemon-reload
-systemctl enable icinga-director && systemctl start icinga-director && systemctl status icinga-director
+
+
 
 # check in icinga instance, should be fine now:
 https://(host)/icingaweb2/director/health
@@ -667,6 +540,10 @@ systemctl restart icinga2
 
 # new cert should be generated in
 ls -la /var/lib/icinga2/certs
+
+
+
+
 
 # kickstarter to import freshly defined master configuration
 icingaweb2, configuration, modules, director, configuration
