@@ -586,7 +586,7 @@ icinga2 feature enable notification && systemctl restart icinga2
 
 # selinux
 semanage fcontext -a -t nagios_notification_plugin_exec_t "/data/home/icinga/checks/local(/.*)?"
-restorecon -R /data/home/icinga/checks/local/
+restorecon -Rv /data/home/icinga/checks/local/
 
 
 # module:  reporting
